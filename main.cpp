@@ -63,3 +63,131 @@ public:
         return coaches;
     }
 };
+
+class Booking {
+public:
+    int pnr; 
+    std::string from; 
+    std::string to; 
+    std::string date; 
+    char coachType; 
+    int numPassengers; 
+    int fare; 
+    std::vector<std::pair<std::string, int>> seats; // Seats booked
+
+    Booking(int pnr, std::string from, std::string to, std::string date, char coachType, int numPassengers, int fare)
+        : pnr(pnr), from(from), to(to), date(date), coachType(coachType), numPassengers(numPassengers), fare(fare) {}
+
+    // Get the PNR number
+    int getPNR() const {
+        return pnr;
+    }
+
+    // Get the from station
+    std::string getFrom() const {
+        return from;
+    }
+
+    // Get the to station
+    std::string getTo() const {
+        return to;
+    }
+
+    // Get the date of travel
+    std::string getDate() const {
+        return date;
+    }
+
+    // Get the coach type
+    char getCoachType() const {
+        return coachType;
+    }
+
+    // Get the number of passengers
+    int getNumPassengers() const {
+        return numPassengers;
+    }
+
+    // Get the fare for the booking
+    int getFare() const {
+        return fare;
+    }
+
+    // Get the seats booked
+    std::vector<std::pair<std::string, int>> getSeats() const {
+        return seats;
+    }
+};
+
+class BookingSystem {
+public:
+    std::vector<Train> trains; // Trains in the system
+    std::map<int, Booking> bookings; // Bookings in the system
+    int pnrCounter; // PNR counter
+
+    BookingSystem(const std::vector<Train>& trains) : trains(trains), pnrCounter(100000000) {}
+
+    // Book tickets for a given route, date, class/coach type, and number of passengers
+    std::pair<int, int> bookTickets(const std::string& fromStation, const std::string& toStation, const std::string& date, char coachType, int numPassengers) {
+        for (auto& train : trains) {
+                        if (train.getRoute() == std::make_pair(fromStation, toStation)) {
+                int totalSeats = 0;
+                for (const auto& coach : train.getCoaches()) {
+                    if (coach.getType() == coachType) {
+                        totalSeats += coach.getAvailableSeats();
+                    }
+                }
+                if (totalSeats >= numPassengers) {
+                    pnrCounter++;
+                    int fare = train.getDistance() * getFareRate(coachType) * numPassengers;
+                    updateSeatAvailability(train, coachType, numPassengers);
+                    bookings[pnrCounter] = Booking(pnrCounter, fromStation, toStation, date, coachType, numPassengers, fare);
+                    return {pnrCounter, fare};
+                }
+            }
+        }
+        return {-1, 0}; // No Seats Available
+    }
+
+    // Get booking details using PNR
+    Booking getBookingDetails(int pnr) {
+        if (bookings.find(pnr) != bookings.end()) {
+            return bookings[pnr];
+        }
+        throw std::invalid_argument("Invalid PNR");
+    }
+
+    // Generate a report of all bookings
+    void generateReport() {
+        for (const auto& booking : bookings) {
+            std::cout << "PNR: " << booking.second.getPNR() << ", Date: " << booking.second.getDate() << ", Train: " << booking.second.getFrom() << " to " << booking.second.getTo() << ", Fare: " << booking.second.getFare() << "\n";
+        }
+    }
+
+    // Handle waitlist and cancellations
+    void handleWaitlistAndCancellations() {
+        // Implement logic to handle waitlist and cancellations
+    }
+
+private:
+    // Get the fare rate for a given coach type
+    int getFareRate(char coachType) {
+        std::map<char, int> rates = {{'S', 1}, {'B', 2}, {'A', 3}, {'H', 4}};
+        return rates[coachType];
+    }
+
+    // Update the seat availability for a given train and coach type
+    void updateSeatAvailability(Train& train, char coachType, int numPassengers) {
+        for (auto& coach : train.getCoaches()) {
+            if (coach.getType() == coachType) {
+                if (coach.getAvailableSeats() >= numPassengers) {
+                    coach.updateAvailableSeats(numPassengers);
+                    break;
+                } else {
+                    numPassengers -= coach.getAvailableSeats();
+                    coach.updateAvailableSeats(coach.getAvailableSeats());
+                }
+            }
+        }
+    }
+};
