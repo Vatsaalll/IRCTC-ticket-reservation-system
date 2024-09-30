@@ -191,3 +191,30 @@ private:
         }
     }
 };
+
+int main() {
+    // Create trains
+    std::vector<Coach> coaches1 = {Coach('S', 72), Coach('B', 72), Coach('A', 48), Coach('H', 24)};
+    Train train1("17726", std::make_pair("Rajkot", "Mumbai"), 750, coaches1);
+
+    std::vector<Coach> coaches2 = {Coach('S', 15), Coach('B', 20), Coach('A', 36), Coach('H', 48)};
+    Train train2("37392", std::make_pair("Ahmedabad", "Surat"), 300, coaches2);
+
+    std::vector<Train> trains = {train1, train2};
+
+    // Create booking system
+    BookingSystem bookingSystem(trains);
+
+    // Book tickets
+    auto result = bookingSystem.bookTickets("Rajkot", "Mumbai", "2023-03-15", 'S', 6);
+    if (result.first != -1) {
+        std::cout << "PNR: " << result.first << " Fare: " << result.second << "\n";
+    } else {
+        std::cout << "No Seats Available\n";
+    }
+
+    // Generate report
+    bookingSystem.generateReport();
+
+    return 0;
+}
