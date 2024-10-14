@@ -1,220 +1,229 @@
 #include <iostream>
 #include <vector>
 #include <map>
-#include <sstream>
 #include <string>
+#include <sstream>
+#include <iomanip>
+#include <queue>
 
-class Coach {
-public:
-    char type; 
-    int seats; 
-    int availableSeats; 
+using namespace std;
 
-    Coach(char type, int seats) : type(type), seats(seats), availableSeats(seats) {}
-
-    
-    char getType() const {
-        return type;
-    }
-
-    
-    int getSeats() const {
-        return seats;
-    }
-
-    
-    int getAvailableSeats() const {
-        return availableSeats;
-    }
-
-    
-    void updateAvailableSeats(int numSeats) {
-        availableSeats -= numSeats;
-    }
+struct Train {
+    string number;
+    map<string, int> stations; // station name and distance
+    map<string, int> coaches;  // coach type and seats
 };
 
-class Train {
-public:
-    std::string number; // Train number
-    std::pair<std::string, std::string> route; // Train route (from, to)
-    int distance; // Distance of the train route
-    std::vector<Coach> coaches; // Coaches in the train
-
-    Train(std::string number, std::pair<std::string, std::string> route, int distance, std::vector<Coach> coaches)
-        : number(number), route(route), distance(distance), coaches(coaches) {}
-
-    // Get the train number
-    std::string getNumber() const {
-        return number;
-    }
-
-    // Get the train route
-    std::pair<std::string, std::string> getRoute() const {
-        return route;
-    }
-
-    // Get the distance of the train route
-    int getDistance() const {
-        return distance;
-    }
-
-    // Get the coaches in the train
-    std::vector<Coach> getCoaches() const {
-        return coaches;
-    }
+struct Booking {
+    int pnr;
+    string trainNumber;
+    string from;
+    string to;
+    string date;
+    string coachType;
+    int passengers;
+    int fare;
+    vector<pair<string, int>> seats; // coach and seat number
+    bool waitlisted;
+    int waitlistNumber;
 };
 
-class Booking {
-public:
-    int pnr; 
-    std::string from; 
-    std::string to; 
-    std::string date; 
-    char coachType; 
-    int numPassengers; 
-    int fare; 
-    std::vector<std::pair<std::string, int>> seats; // Seats booked
+vector<Train> trains;
+map<int, Booking> bookings;
+map<string, queue<Booking>> waitlists; // key: trainNumber_date_coachType
+int nextPNR = 100000001;
 
-    Booking(int pnr, std::string from, std::string to, std::string date, char coachType, int numPassengers, int fare)
-        : pnr(pnr), from(from), to(to), date(date), coachType(coachType), numPassengers(numPassengers), fare(fare) {}
+void bookTickets(string from, string to, string date, string coachType, int passengers) {
+    // Find the train for the given route
+    for (auto &train : trains) {
+        if (train.stations.find(from) != train.stations.end() && train.stations.find(to) != train.stations.end()) {
+            int distance = train.stations[to] - train.stations[from];
+            int farePerKm = 0;
+            if (coachType == "SL") farePerKm = 1;
+            else if (coachType == "3A") farePerKm = 2;
+            else if (coachType == "2A") farePerKm = 3;
+            else if (coachType == "1A") farePerKm = 4;
 
-    // Get the PNR number
-    int getPNR() const {
-        return pnr;
-    }
+            int totalFare = distance * farePerKm * passengers;
 
-    // Get the from station
-    std::string getFrom() const {
-        return from;
-    }
+            // Check seat availability and book
+            int seatsAvailable = 0;
+            for (auto &coach : train.coaches) {
+                if (coach.first.substr(0, 1) == coachType.substr(0, 1)) {
+                    seatsAvailable += coach.second;
+                }
+            }
 
-    // Get the to station
-    std::string getTo() const {
-        return to;
-    }
+            Booking booking;
+            booking.pnr = nextPNR++;
+            booking.trainNumber = train.number;
+            booking.from = from;
+            booking.to = to;
+            booking.date = date;
+            booking.coachType = coachType;
+            booking.passengers = passengers;
+            booking.fare = totalFare;
+            booking.waitlisted = false;
+            booking.waitlistNumber = 0;
 
-    // Get the date of travel
-    std::string getDate() const {
-        return date;
-    }
-
-    // Get the coach type
-    char getCoachType() const {
-        return coachType;
-    }
-
-    // Get the number of passengers
-    int getNumPassengers() const {
-        return numPassengers;
-    }
-
-    // Get the fare for the booking
-    int getFare() const {
-        return fare;
-    }
-
-    // Get the seats booked
-    std::vector<std::pair<std::string, int>> getSeats() const {
-        return seats;
-    }
-};
-
-class BookingSystem {
-public:
-    std::vector<Train> trains; // Trains in the system
-    std::map<int, Booking> bookings; // Bookings in the system
-    int pnrCounter; // PNR counter
-
-    BookingSystem(const std::vector<Train>& trains) : trains(trains), pnrCounter(100000000) {}
-
-    // Book tickets for a given route, date, class/coach type, and number of passengers
-    std::pair<int, int> bookTickets(const std::string& fromStation, const std::string& toStation, const std::string& date, char coachType, int numPassengers) {
-        for (auto& train : trains) {
-                        if (train.getRoute() == std::make_pair(fromStation, toStation)) {
-                int totalSeats = 0;
-                for (const auto& coach : train.getCoaches()) {
-                    if (coach.getType() == coachType) {
-                        totalSeats += coach.getAvailableSeats();
+            if (seatsAvailable >= passengers) {
+                // Allocate seats
+                for (auto &coach : train.coaches) {
+                    if (coach.first.substr(0, 1) == coachType.substr(0, 1)) {
+                        int seatsToBook = min(passengers, coach.second);
+                        for (int i = 1; i <= seatsToBook; ++i) {
+                            booking.seats.push_back({coach.first, i});
+                        }
+                        coach.second -= seatsToBook;
+                        passengers -= seatsToBook;
+                        if (passengers == 0) break;
                     }
                 }
-                if (totalSeats >= numPassengers) {
-                    pnrCounter++;
-                    int fare = train.getDistance() * getFareRate(coachType) * numPassengers;
-                    updateSeatAvailability(train, coachType, numPassengers);
-                    bookings[pnrCounter] = Booking(pnrCounter, fromStation, toStation, date, coachType, numPassengers, fare);
-                    return {pnrCounter, fare};
+                bookings[booking.pnr] = booking;
+                cout << booking.pnr << " " << booking.fare << endl;
+            } else {
+                // Add to waitlist
+                booking.waitlisted = true;
+                booking.waitlistNumber = waitlists[train.number + "_" + date + "_" + coachType].size() + 1;
+                waitlists[train.number + "_" + date + "_" + coachType].push(booking);
+                bookings[booking.pnr] = booking;
+                cout << booking.pnr << " " << booking.fare << " WL/" << booking.waitlistNumber << endl;
+            }
+            return;
+        }
+    }
+    cout << "No Trains Available" << endl;
+}
+
+void retrieveBooking(int pnr) {
+    if (bookings.find(pnr) != bookings.end()) {
+        Booking booking = bookings[pnr];
+        cout << booking.trainNumber << " " << booking.from << " " << booking.to << " " << booking.date << " " << booking.fare << " ";
+        for (auto &seat : booking.seats) {
+            cout << seat.first << "-" << seat.second << " ";
+        }
+        if (booking.waitlisted) {
+            cout << "WL/" << booking.waitlistNumber;
+        }
+        cout << endl;
+    } else {
+        cout << "Invalid PNR" << endl;
+    }
+}
+
+void generateReport() {
+    cout << "PNR, DATE, TRAIN, FROM, TO, FARE, SEATS" << endl;
+    for (auto &entry : bookings) {
+        Booking booking = entry.second;
+        cout << booking.pnr << ", " << booking.date << ", " << booking.trainNumber << ", " << booking.from << ", " << booking.to << ", " << booking.fare << ", ";
+        for (auto &seat : booking.seats) {
+            cout << seat.first << "-" << seat.second << " ";
+        }
+        if (booking.waitlisted) {
+            cout << "WL/" << booking.waitlistNumber;
+        }
+        cout << endl;
+    }
+}
+
+void cancelBooking(int pnr) {
+    if (bookings.find(pnr) != bookings.end()) {
+        Booking booking = bookings[pnr];
+        if (booking.waitlisted) {
+            // Remove from waitlist
+            queue<Booking> &waitlist = waitlists[booking.trainNumber + "_" + booking.date + "_" + booking.coachType];
+            queue<Booking> newWaitlist;
+            while (!waitlist.empty()) {
+                Booking b = waitlist.front();
+                waitlist.pop();
+                if (b.pnr != pnr) {
+                    newWaitlist.push(b);
                 }
             }
-        }
-        return {-1, 0}; // No Seats Available
-    }
-
-    // Get booking details using PNR
-    Booking getBookingDetails(int pnr) {
-        if (bookings.find(pnr) != bookings.end()) {
-            return bookings[pnr];
-        }
-        throw std::invalid_argument("Invalid PNR");
-    }
-
-    // Generate a report of all bookings
-    void generateReport() {
-        for (const auto& booking : bookings) {
-            std::cout << "PNR: " << booking.second.getPNR() << ", Date: " << booking.second.getDate() << ", Train: " << booking.second.getFrom() << " to " << booking.second.getTo() << ", Fare: " << booking.second.getFare() << "\n";
-        }
-    }
-
-    // Handle waitlist and cancellations
-    void handleWaitlistAndCancellations() {
-        // Implement logic to handle waitlist and cancellations
-    }
-
-private:
-    // Get the fare rate for a given coach type
-    int getFareRate(char coachType) {
-        std::map<char, int> rates = {{'S', 1}, {'B', 2}, {'A', 3}, {'H', 4}};
-        return rates[coachType];
-    }
-
-    // Update the seat availability for a given train and coach type
-    void updateSeatAvailability(Train& train, char coachType, int numPassengers) {
-        for (auto& coach : train.getCoaches()) {
-            if (coach.getType() == coachType) {
-                if (coach.getAvailableSeats() >= numPassengers) {
-                    coach.updateAvailableSeats(numPassengers);
-                    break;
+            waitlists[booking.trainNumber + "_" + booking.date + "_" + booking.coachType] = newWaitlist;
+        } else {
+            // Free up seats
+            for (auto &seat : booking.seats) {
+                for (auto &train : trains) {
+                    if (train.number == booking.trainNumber) {
+                        train.coaches[seat.first]++;
+                    }
+                }
+            }
+            // Confirm waitlisted bookings if possible
+            queue<Booking> &waitlist = waitlists[booking.trainNumber + "_" + booking.date + "_" + booking.coachType];
+            while (!waitlist.empty()) {
+                Booking b = waitlist.front();
+                waitlist.pop();
+                int seatsAvailable = 0;
+                for (auto &train : trains) {
+                    if (train.number == b.trainNumber) {
+                        for (auto &coach : train.coaches) {
+                            if (coach.first.substr(0, 1) == b.coachType.substr(0, 1)) {
+                                seatsAvailable += coach.second;
+                            }
+                        }
+                    }
+                }
+                if (seatsAvailable >= b.passengers) {
+                    // Allocate seats
+                    for (auto &train : trains) {
+                        if (train.number == b.trainNumber) {
+                            for (auto &coach : train.coaches) {
+                                if (coach.first.substr(0, 1) == b.coachType.substr(0, 1)) {
+                                    int seatsToBook = min(b.passengers, coach.second);
+                                    for (int i = 1; i <= seatsToBook; ++i) {
+                                        b.seats.push_back({coach.first, i});
+                                    }
+                                    coach.second -= seatsToBook;
+                                    b.passengers -= seatsToBook;
+                                    if (b.passengers == 0) break;
+                                }
+                            }
+                        }
+                    }
+                    b.waitlisted = false;
+                    b.waitlistNumber = 0;
+                    bookings[b.pnr] = b;
+                    cout << "Booking confirmed for PNR " << b.pnr << endl;
                 } else {
-                    numPassengers -= coach.getAvailableSeats();
-                    coach.updateAvailableSeats(coach.getAvailableSeats());
+                    waitlist.push(b);
+                    break;
                 }
             }
         }
+        bookings.erase(pnr);
+        cout << "Booking cancelled for PNR " << pnr << endl;
+    } else {
+        cout << "Invalid PNR" << endl;
     }
-};
+}
 
 int main() {
-    // Create trains
-    std::vector<Coach> coaches1 = {Coach('S', 72), Coach('B', 72), Coach('A', 48), Coach('H', 24)};
-    Train train1("17726", std::make_pair("Rajkot", "Mumbai"), 750, coaches1);
+    // Example data
+    Train train1 = {"17726", {{"Rajkot", 0}, {"Mumbai", 750}}, {{"S1", 72}, {"S2", 72}, {"B1", 72}, {"A1", 48}, {"H1", 24}}};
+    Train train2 = {"37392", {{"Ahmedabad", 0}, {"Surat", 300}}, {{"S1", 15}, {"S2", 20}, {"S3", 50}, {"B1", 36}, {"B2", 48}}};
+    trains.push_back(train1);
+    trains.push_back(train2);
 
-    std::vector<Coach> coaches2 = {Coach('S', 15), Coach('B', 20), Coach('A', 36), Coach('H', 48)};
-    Train train2("37392", std::make_pair("Ahmedabad", "Surat"), 300, coaches2);
+    // Example bookings
+    bookTickets("Rajkot", "Mumbai", "2023-03-15", "SL", 6);
+    bookTickets("Rajkot", "Mumbai", "2023-03-15", "1A", 24);
+    bookTickets("Rajkot", "Mumbai", "2023-03-15", "1A", 1);
+    bookTickets("Rajkot", "Mumbai", "2023-03-16", "1A", 10);
+    bookTickets("Rajkot", "Chennai", "2023-03-16", "1A", 10);
 
-    std::vector<Train> trains = {train1, train2};
-
-    // Create booking system
-    BookingSystem bookingSystem(trains);
-
-    // Book tickets
-    auto result = bookingSystem.bookTickets("Rajkot", "Mumbai", "2023-03-15", 'S', 6);
-    if (result.first != -1) {
-        std::cout << "PNR: " << result.first << " Fare: " << result.second << "\n";
-    } else {
-        std::cout << "No Seats Available\n";
-    }
+    // Retrieve booking
+    retrieveBooking(100000001);
 
     // Generate report
-    bookingSystem.generateReport();
+    generateReport();
+
+    // Cancel booking
+    cancelBooking(100000001);
+
+    // Generate report after cancellation
+    generateReport();
 
     return 0;
 }
