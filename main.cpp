@@ -33,6 +33,7 @@ map<int, Booking> bookings;
 map<string, queue<Booking>> waitlists; // key: trainNumber_date_coachType
 int nextPNR = 100000001;
 
+// Book tickets based on availability
 void bookTickets(string from, string to, string date, string coachType, int passengers) {
     // Find the train for the given route
     for (auto &train : trains) {
@@ -80,14 +81,14 @@ void bookTickets(string from, string to, string date, string coachType, int pass
                     }
                 }
                 bookings[booking.pnr] = booking;
-                cout << booking.pnr << " " << booking.fare << endl;
+                cout << "PNR: " << booking.pnr << ", Fare: " << booking.fare << endl;
             } else {
                 // Add to waitlist
                 booking.waitlisted = true;
                 booking.waitlistNumber = waitlists[train.number + "_" + date + "_" + coachType].size() + 1;
                 waitlists[train.number + "_" + date + "_" + coachType].push(booking);
                 bookings[booking.pnr] = booking;
-                cout << booking.pnr << " " << booking.fare << " WL/" << booking.waitlistNumber << endl;
+                cout << "PNR: " << booking.pnr << ", Fare: " << booking.fare << ", WL/" << booking.waitlistNumber << endl;
             }
             return;
         }
@@ -95,10 +96,12 @@ void bookTickets(string from, string to, string date, string coachType, int pass
     cout << "No Trains Available" << endl;
 }
 
+// Retrieve a booking using PNR
 void retrieveBooking(int pnr) {
     if (bookings.find(pnr) != bookings.end()) {
         Booking booking = bookings[pnr];
-        cout << booking.trainNumber << " " << booking.from << " " << booking.to << " " << booking.date << " " << booking.fare << " ";
+        cout << "Train: " << booking.trainNumber << ", From: " << booking.from << ", To: " << booking.to
+             << ", Date: " << booking.date << ", Fare: " << booking.fare << ", Seats: ";
         for (auto &seat : booking.seats) {
             cout << seat.first << "-" << seat.second << " ";
         }
@@ -111,11 +114,13 @@ void retrieveBooking(int pnr) {
     }
 }
 
+// Generate a report of all bookings
 void generateReport() {
-    cout << "PNR, DATE, TRAIN, FROM, TO, FARE, SEATS" << endl;
+    cout << "PNR, Date, Train, From, To, Fare, Seats" << endl;
     for (auto &entry : bookings) {
         Booking booking = entry.second;
-        cout << booking.pnr << ", " << booking.date << ", " << booking.trainNumber << ", " << booking.from << ", " << booking.to << ", " << booking.fare << ", ";
+        cout << booking.pnr << ", " << booking.date << ", " << booking.trainNumber << ", " << booking.from
+             << ", " << booking.to << ", " << booking.fare << ", ";
         for (auto &seat : booking.seats) {
             cout << seat.first << "-" << seat.second << " ";
         }
@@ -126,6 +131,7 @@ void generateReport() {
     }
 }
 
+// Cancel a booking using PNR
 void cancelBooking(int pnr) {
     if (bookings.find(pnr) != bookings.end()) {
         Booking booking = bookings[pnr];
@@ -199,14 +205,40 @@ void cancelBooking(int pnr) {
     }
 }
 
+// Display list of all trains and their details
+void displayTrains() {
+    cout << "Available Trains: \n";
+    for (const auto &train : trains) {
+        cout << "Train Number: " << train.number << " - Stations: ";
+        for (const auto &station : train.stations) {
+            cout << station.first << "(" << station.second << "km) ";
+        }
+        cout << "- Coaches: ";
+        for (const auto &coach : train.coaches) {
+            cout << coach.first << "(" << coach.second << " seats) ";
+        }
+        cout << endl;
+    }
+}
+
 int main() {
-    // Example data
+    // Initialize train data
     Train train1 = {"17726", {{"Rajkot", 0}, {"Mumbai", 750}}, {{"S1", 72}, {"S2", 72}, {"B1", 72}, {"A1", 48}, {"H1", 24}}};
     Train train2 = {"37392", {{"Ahmedabad", 0}, {"Surat", 300}}, {{"S1", 15}, {"S2", 20}, {"S3", 50}, {"B1", 36}, {"B2", 48}}};
-    trains.push_back(train1);
-    trains.push_back(train2);
+    Train train3 = {"29772", {{"Vadodara", 0}, {"Indore", 450}}, {{"S1", 60}, {"B1", 36}, {"A1", 48}}};
+    Train train4 = {"12933", {{"Delhi", 0}, {"Jaipur", 250}, {"Ahmedabad", 600}}, {{"S1", 72}, {"B1", 50}, {"A1", 24}}};
+    Train train5 = {"12016", {{"Mumbai", 0}, {"Pune", 150}}, {{"S1", 72}, {"S2", 60}, {"B1", 48}}};
+    Train train6 = {"12628", {{"Chennai", 0}, {"Bangalore", 350}}, {{"S1", 72}, {"S2", 70}, {"A1", 48}}};
+    Train train7 = {"19001", {{"Surat", 0}, {"Mumbai", 300}}, {{"S1", 15}, {"S2", 20}, {"B1", 48}}};
+
+    // Add all trains to the list
+    trains = {train1, train2, train3, train4, train5, train6, train7};
+
+    // Display all available trains
+    displayTrains();
 
     // Example bookings
+    cout << "\nBooking Tickets:\n";
     bookTickets("Rajkot", "Mumbai", "2023-03-15", "SL", 6);
     bookTickets("Rajkot", "Mumbai", "2023-03-15", "1A", 24);
     bookTickets("Rajkot", "Mumbai", "2023-03-15", "1A", 1);
@@ -214,15 +246,19 @@ int main() {
     bookTickets("Rajkot", "Chennai", "2023-03-16", "1A", 10);
 
     // Retrieve booking
+    cout << "\nRetrieving Booking:\n";
     retrieveBooking(100000001);
 
     // Generate report
+    cout << "\nGenerating Report:\n";
     generateReport();
 
     // Cancel booking
+    cout << "\nCancelling Booking:\n";
     cancelBooking(100000001);
 
     // Generate report after cancellation
+    cout << "\nGenerating Report after Cancellation:\n";
     generateReport();
 
     return 0;
