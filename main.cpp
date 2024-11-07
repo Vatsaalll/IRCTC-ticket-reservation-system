@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <queue>
 #include <cctype>
+#include <algorithm>
 
 using namespace std;
 
@@ -52,6 +53,8 @@ void bookTickets(string trainNumber, string from, string to, string date, string
             {
                 int distance = toIt->second - fromIt->second; // Calculate the distance
                 int farePerKm = 0;
+
+                // Determine fare per km based on coach type
                 if (coachType == "SL")
                     farePerKm = 1;
                 else if (coachType == "3A")
@@ -63,11 +66,22 @@ void bookTickets(string trainNumber, string from, string to, string date, string
 
                 int totalFare = distance * farePerKm * passengers;
 
-                // Check seat availability and book
+                // Mapping coachType to the corresponding coach prefixes
+                vector<string> matchedCoaches;
+                if (coachType == "SL")
+                    matchedCoaches = {"S1", "S2"};
+                else if (coachType == "3A")
+                    matchedCoaches = {"B1", "B2"};
+                else if (coachType == "2A")
+                    matchedCoaches = {"H1", "H2"};
+                else if (coachType == "1A")
+                    matchedCoaches = {"A1", "A2"};
+
+                // Check seat availability based on matched coaches
                 int seatsAvailable = 0;
                 for (auto &coach : train.coaches)
                 {
-                    if (coach.first.substr(0, 1) == coachType.substr(0, 1))
+                    if (find(matchedCoaches.begin(), matchedCoaches.end(), coach.first) != matchedCoaches.end())
                     {
                         seatsAvailable += coach.second;
                     }
@@ -90,7 +104,7 @@ void bookTickets(string trainNumber, string from, string to, string date, string
                     // Allocate seats
                     for (auto &coach : train.coaches)
                     {
-                        if (coach.first.substr(0, 1) == coachType.substr(0, 1))
+                        if (find(matchedCoaches.begin(), matchedCoaches.end(), coach.first) != matchedCoaches.end())
                         {
                             int seatsToBook = min(passengers, coach.second);
                             for (int i = 1; i <= seatsToBook; ++i)
@@ -108,7 +122,7 @@ void bookTickets(string trainNumber, string from, string to, string date, string
                 }
                 else
                 {
-                    // Add to waitlist
+                    // Add to waitlist if seats are not available
                     booking.waitlisted = true;
                     booking.waitlistNumber = waitlists[train.number + "_" + date + "_" + coachType].size() + 1;
                     waitlists[train.number + "_" + date + "_" + coachType].push(booking);
