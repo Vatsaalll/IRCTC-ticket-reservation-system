@@ -304,6 +304,15 @@ string capitalizeFirstLetter(const string &input)
     }
     return result;
 }
+string toUpperCase(const string &input)
+{
+    string result = input;
+    for (char &c : result)
+    {
+        c = toupper(c);
+    }
+    return result;
+}
 
 // Function to handle user actions
 void userInterface()
@@ -340,6 +349,7 @@ void userInterface()
             cin >> date;
             cout << "Enter Coach Type (SL/3A/2A/1A): ";
             cin >> coachType;
+            coachType = toUpperCase(coachType);
             cout << "Enter Number of Passengers: ";
             cin >> passengers;
             bookTickets(trainNumber, from, to, date, coachType, passengers);
