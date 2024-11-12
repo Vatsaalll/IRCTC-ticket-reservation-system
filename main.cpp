@@ -36,6 +36,7 @@ vector<Train> trains;
 map<int, Booking> bookings;
 map<string, queue<Booking>> waitlists; // key: trainNumber_date_coachType
 int nextPNR = 100000001;
+map<string, map<string, map<string, int>>> dateWiseAvailability;
 
 // Function to book tickets
 void bookTickets(string trainNumber, string from, string to, string date, string coachType, int passengers)
@@ -51,10 +52,9 @@ void bookTickets(string trainNumber, string from, string to, string date, string
 
             if (fromIt != train.stations.end() && toIt != train.stations.end() && fromIt->second < toIt->second)
             {
-                int distance = toIt->second - fromIt->second; // Calculate the distance
+                int distance = toIt->second - fromIt->second;
                 int farePerKm = 0;
 
-                // Determine fare per km based on coach type
                 if (coachType == "SL")
                     farePerKm = 1;
                 else if (coachType == "3A")
@@ -66,23 +66,47 @@ void bookTickets(string trainNumber, string from, string to, string date, string
 
                 int totalFare = distance * farePerKm * passengers;
 
-                // Mapping coachType to the corresponding coach prefixes
-                vector<string> matchedCoaches;
-                if (coachType == "SL")
-                    matchedCoaches = {"S1", "S2"};
-                else if (coachType == "3A")
-                    matchedCoaches = {"B1", "B2"};
-                else if (coachType == "2A")
-                    matchedCoaches = {"H1", "H2"};
-                else if (coachType == "1A")
-                    matchedCoaches = {"A1", "A2"};
-
-                // Check seat availability based on matched coaches
-                int seatsAvailable = 0;
-                for (auto &coach : train.coaches)
+                // Check if the specified coachType exists in the train
+                bool coachAvailable = false;
+                for (const auto &coach : train.coaches)
                 {
-                    if (find(matchedCoaches.begin(), matchedCoaches.end(), coach.first) != matchedCoaches.end())
+                    if ((coachType == "SL" && coach.first[0] == 'S') ||
+                        (coachType == "3A" && coach.first[0] == 'B') ||
+                        (coachType == "2A" && coach.first[0] == 'H') ||
+                        (coachType == "1A" && coach.first[0] == 'A'))
                     {
+                        coachAvailable = true;
+                        break;
+                    }
+                }
+
+                // If the specified coach type is not available, display a message and return
+                if (!coachAvailable)
+                {
+                    cout << "The specified coach type (" << coachType << ") is not available on this train." << endl;
+                    return;
+                }
+
+                // Initialize seats for this date if not already done
+                if (dateWiseAvailability[trainNumber][date].empty())
+                {
+                    for (const auto &coach : train.coaches)
+                    {
+                        dateWiseAvailability[trainNumber][date][coach.first] = coach.second;
+                    }
+                }
+
+                // Check seat availability for the selected date and coachType
+                int seatsAvailable = 0;
+                vector<string> matchedCoaches;
+                for (const auto &coach : dateWiseAvailability[trainNumber][date])
+                {
+                    if ((coachType == "SL" && coach.first[0] == 'S') ||
+                        (coachType == "3A" && coach.first[0] == 'B') ||
+                        (coachType == "2A" && coach.first[0] == 'H') ||
+                        (coachType == "1A" && coach.first[0] == 'A'))
+                    {
+                        matchedCoaches.push_back(coach.first);
                         seatsAvailable += coach.second;
                     }
                 }
@@ -101,28 +125,24 @@ void bookTickets(string trainNumber, string from, string to, string date, string
 
                 if (seatsAvailable >= passengers)
                 {
-                    // Allocate seats
-                    for (auto &coach : train.coaches)
+                    // Allocate seats and update date-wise availability
+                    for (auto &coach : matchedCoaches)
                     {
-                        if (find(matchedCoaches.begin(), matchedCoaches.end(), coach.first) != matchedCoaches.end())
+                        int seatsToBook = min(passengers, dateWiseAvailability[trainNumber][date][coach]);
+                        for (int i = 1; i <= seatsToBook; ++i)
                         {
-                            int seatsToBook = min(passengers, coach.second);
-                            for (int i = 1; i <= seatsToBook; ++i)
-                            {
-                                booking.seats.push_back({coach.first, i});
-                            }
-                            coach.second -= seatsToBook;
-                            passengers -= seatsToBook;
-                            if (passengers == 0)
-                                break;
+                            booking.seats.push_back({coach, i});
                         }
+                        dateWiseAvailability[trainNumber][date][coach] -= seatsToBook;
+                        passengers -= seatsToBook;
+                        if (passengers == 0)
+                            break;
                     }
                     bookings[booking.pnr] = booking;
                     cout << "Booking confirmed! PNR: " << booking.pnr << ", Fare: " << booking.fare << endl;
                 }
                 else
                 {
-                    // Add to waitlist if seats are not available
                     booking.waitlisted = true;
                     booking.waitlistNumber = waitlists[train.number + "_" + date + "_" + coachType].size() + 1;
                     waitlists[train.number + "_" + date + "_" + coachType].push(booking);
